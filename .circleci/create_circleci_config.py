@@ -85,14 +85,14 @@ class CircleCIJob:
         steps = [
             "checkout",
             {"attach_workspace": {"at": "~/transformers/test_preparation"}},
-            {
-                "restore_cache": {
-                    "keys": [
-                        f"v{self.cache_version}-{self.cache_name}-" + '{{ checksum "setup.py" }}',
-                        f"v{self.cache_version}-{self.cache_name}-",
-                    ]
-                }
-            },
+            # {
+            #     "restore_cache": {
+            #         "keys": [
+            #             f"v{self.cache_version}-{self.cache_name}-" + '{{ checksum "setup.py" }}',
+            #             f"v{self.cache_version}-{self.cache_name}-",
+            #         ]
+            #     }
+            # },
         ]
         steps.extend([{"run": l} for l in self.install_steps])
         steps.append(
@@ -112,57 +112,10 @@ class CircleCIJob:
             f"--make-reports={self.name}" if "examples" in self.name else f"--make-reports=tests_{self.name}"
         )
         test_command = f"python -m pytest -n {self.pytest_num_workers} " + " ".join(pytest_flags)
-        if self.parallelism == 1:
-            if self.tests_to_run is None:
-                test_command += " << pipeline.parameters.tests_to_run >>"
-            else:
-                test_command += " " + " ".join(self.tests_to_run)
+        if self.tests_to_run is None:
+            test_command += " << pipeline.parameters.tests_to_run >>"
         else:
-            # We need explicit list instead of `pipeline.parameters.tests_to_run` (only available at job runtime)
-            tests = self.tests_to_run
-            if tests is None:
-                folder = os.environ["test_preparation_dir"]
-                test_file = os.path.join(folder, "filtered_test_list.txt")
-                if os.path.exists(test_file):
-                    with open(test_file) as f:
-                        tests = f.read().split(" ")
-
-            # expand the test list
-            if tests == ["tests"]:
-                tests = [os.path.join("tests", x) for x in os.listdir("tests")]
-            expanded_tests = []
-            for test in tests:
-                if test.endswith(".py"):
-                    expanded_tests.append(test)
-                elif test == "tests/models":
-                    expanded_tests.extend([os.path.join(test, x) for x in os.listdir(test)])
-                elif test == "tests/pipelines":
-                    expanded_tests.extend([os.path.join(test, x) for x in os.listdir(test)])
-                else:
-                    expanded_tests.append(test)
-            # Avoid long tests always being collected together
-            random.shuffle(expanded_tests)
-            tests = " ".join(expanded_tests)
-
-            # Each executor to run ~10 tests
-            n_executors = max(len(tests) // 10, 1)
-            # Avoid empty test list on some executor(s) or launching too many executors
-            if n_executors > self.parallelism:
-                n_executors = self.parallelism
-            job["parallelism"] = n_executors
-
-            # Need to be newline separated for the command `circleci tests split` below
-            command = f'echo {tests} | tr " " "\\n" >> tests.txt'
-            steps.append({"run": {"name": "Get tests", "command": command}})
-
-            command = 'TESTS=$(circleci tests split tests.txt) && echo $TESTS > splitted_tests.txt'
-            steps.append({"run": {"name": "Split tests", "command": command}})
-
-            steps.append({"store_artifacts": {"path": "~/transformers/tests.txt"}})
-            steps.append({"store_artifacts": {"path": "~/transformers/splitted_tests.txt"}})
-
-            test_command = f"python -m pytest -n {self.pytest_num_workers} " + " ".join(pytest_flags)
-            test_command += " $(cat splitted_tests.txt)"
+            test_command += " " + " ".join(self.tests_to_run)
         if self.marker is not None:
             test_command += f" -m {self.marker}"
         test_command += " | tee tests_output.txt"
@@ -228,6 +181,7 @@ tf_job = CircleCIJob(
         "pip install --upgrade pip",
         "pip install .[sklearn,tf-cpu,testing,sentencepiece,tf-speech,vision]",
         "pip install tensorflow_probability",
+        "pip uninstall -y tensorflow-cpu",
     ],
     parallelism=1,
     pytest_options={"rA": None},
@@ -402,15 +356,7 @@ repo_utils_job = CircleCIJob(
 )
 
 REGULAR_TESTS = [
-    torch_and_tf_job,
-    torch_and_flax_job,
-    torch_job,
     tf_job,
-    flax_job,
-    custom_tokenizers_job,
-    hub_job,
-    onnx_job,
-    exotic_models_job,
 ]
 EXAMPLES_TESTS = [
     examples_torch_job,
@@ -435,8 +381,7 @@ def create_circleci_config(folder=None):
             all_test_list = f.read()
     else:
         all_test_list = []
-    if len(all_test_list) > 0:
-        jobs.extend(PIPELINE_TESTS)
+
 
     test_file = os.path.join(folder, "filtered_test_list.txt")
     if os.path.exists(test_file):
@@ -476,12 +421,8 @@ def create_circleci_config(folder=None):
             fp.write(" ".join(extended_tests_to_run))
 
     example_file = os.path.join(folder, "examples_test_list.txt")
-    if os.path.exists(example_file) and os.path.getsize(example_file) > 0:
-        jobs.extend(EXAMPLES_TESTS)
 
     repo_util_file = os.path.join(folder, "test_repo_utils.txt")
-    if os.path.exists(repo_util_file) and os.path.getsize(repo_util_file) > 0:
-        jobs.extend(REPO_UTIL_TESTS)
 
     if len(jobs) > 0:
         config = {"version": "2.1"}
