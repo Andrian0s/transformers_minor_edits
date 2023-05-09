@@ -178,6 +178,7 @@ tf_job = CircleCIJob(
         "pip install --upgrade pip",
         "pip install .[sklearn,tf-cpu,testing,sentencepiece,tf-speech,vision]",
         "pip install tensorflow_probability",
+        "pip uninstall -y tensorflow-cpu",
     ],
     parallelism=1,
     pytest_options={"rA": None},
