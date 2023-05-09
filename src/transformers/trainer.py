@@ -1418,7 +1418,7 @@ class Trainer:
         for step, inputs in enumerate(dataloader):
             inputs, loss, logits, labels = self.prediction_step(model, inputs, prediction_loss_only)
             if inputs is not None:
-                inputs_host =  inputs if inputs_host is Noneelse nested_concat(inputs_host, inputs, padding_index=-100)
+                inputs_host =  inputs if inputs_host is None else nested_concat(inputs_host, inputs, padding_index=-100)
             if loss is not None:
                 losses = loss.repeat(batch_size)
                 losses_host = losses if losses_host is None else torch.cat((losses_host, losses), dim=0)
