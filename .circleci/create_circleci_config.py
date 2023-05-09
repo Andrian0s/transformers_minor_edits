@@ -85,14 +85,14 @@ class CircleCIJob:
         steps = [
             "checkout",
             {"attach_workspace": {"at": "~/transformers/test_preparation"}},
-            {
-                "restore_cache": {
-                    "keys": [
-                        f"v{self.cache_version}-{self.cache_name}-" + '{{ checksum "setup.py" }}',
-                        f"v{self.cache_version}-{self.cache_name}-",
-                    ]
-                }
-            },
+            # {
+            #     "restore_cache": {
+            #         "keys": [
+            #             f"v{self.cache_version}-{self.cache_name}-" + '{{ checksum "setup.py" }}',
+            #             f"v{self.cache_version}-{self.cache_name}-",
+            #         ]
+            #     }
+            # },
         ]
         steps.extend([{"run": l} for l in self.install_steps])
         steps.append(
