@@ -1458,7 +1458,7 @@ class Trainer:
         if self.compute_metrics is not None and preds is not None and label_ids is not None:
             if self.args.include_inputs_for_metrics:
                 metrics = self.compute_metrics(
-                    EvalPrediction(predictions=preds, label_ids=label_ids, inputs_ids=inputs_ids)
+                    EvalPrediction(predictions=preds, label_ids=label_ids, inputs=inputs_ids)
                 )
             else:
                 metrics = self.compute_metrics(EvalPrediction(predictions=preds, label_ids=label_ids))
