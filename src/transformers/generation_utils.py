@@ -452,6 +452,9 @@ class GenerationMixin:
                 input_ids, pad_token_id, eos_token_id
             )
 
+        print('input_ids STEP 1 IS: ', input_ids)
+        print(input_ids.shape)
+
         # special case if pad_token_id is not defined
         if pad_token_id is None and eos_token_id is not None:
             logger.warning(f"Setting `pad_token_id` to `eos_token_id`:{eos_token_id} for open-end generation.")
@@ -465,6 +468,8 @@ class GenerationMixin:
             input_ids = self._prepare_decoder_input_ids_for_generation(
                 input_ids, decoder_start_token_id=decoder_start_token_id, bos_token_id=bos_token_id, **model_kwargs
             )
+            print('input_ids STEP 2 IS: ', input_ids)
+            print(input_ids.shape)
 
             if "encoder_outputs" not in model_kwargs or not isinstance(model_kwargs["encoder_outputs"], ModelOutput):
                 raise ValueError("Make sure that `model_kwargs` include `encoder_outputs` of type `ModelOutput`.")
@@ -516,6 +521,8 @@ class GenerationMixin:
                 is_encoder_decoder=self.config.is_encoder_decoder,
                 **model_kwargs,
             )
+            print('input_ids STEP 3 IS: ', input_ids)
+            print(input_ids.shape)
 
             # sample
             return self.sample(
